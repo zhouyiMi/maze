@@ -1,0 +1,126 @@
+import random  
+import numpy as np  
+import matplotlib.pyplot as plt  
+
+# 创建初始迷宫数据结构  
+def create_maze(size_multiplier):  
+    global WIDTH, HEIGHT, maze  
+    WIDTH = 21 * size_multiplier  # 基础宽度  
+    HEIGHT = 21 * size_multiplier  # 基础高度  
+    
+    maze = np.ones((HEIGHT, WIDTH), dtype=np.int8)  
+
+    def generate_maze(x, y):  
+        directions = [(1, 0), (0, 1), (-1, 0), (0, -1)]  
+        random.shuffle(directions)  
+
+        for dx, dy in directions:  
+            nx, ny = x + dx * 2, y + dy * 2  
+            if 0 < nx < HEIGHT and 0 < ny < WIDTH and maze[nx, ny] == 1:  
+                maze[x + dx][y + dy] = 0  
+                maze[nx][ny] = 0  
+                generate_maze(nx, ny)  
+
+    generate_maze(1, 1)  
+    maze[1][1] = 0  # 确保起点可通行  
+    maze[HEIGHT - 2][WIDTH - 2] = 0  # 确保终点可通行  
+
+# 寻找解决迷宫的路径  
+def find_path(start, end):  
+    stack = [start]  
+    path = {}  
+    visited = set()  
+
+    while stack:  
+        current = stack.pop()  
+        
+        if current in visited:  
+            continue  
+
+        visited.add(current)  
+
+        if current == end:  # 找到终点  
+            break  
+
+        x, y = current  
+        directions = [(x + 1, y), (x - 1, y), (x, y + 1), (x, y - 1)]  
+
+        for next_pos in directions:  
+            nx, ny = next_pos  
+            
+            if (0 <= nx < HEIGHT and 0 <= ny < WIDTH and  
+                maze[nx, ny] == 0 and next_pos not in visited):  
+                stack.append(next_pos)  
+                path[next_pos] = current  
+    
+    # 构造路径  
+    solution_path = []  
+    step = end  
+    while step in path:  
+        solution_path.append(step)  
+        step = path[step]  
+    solution_path.append(start)  
+    
+    return solution_path[::-1]  # 返回从起点到终点的路径  
+
+# 小球的移动  
+def move_ball(event):  
+    global ball_position  
+    if event.xdata is not None and event.ydata is not None:  
+        new_position = (int(event.ydata), int(event.xdata))  
+        
+        # 确保鼠标移动到可通行的路径上  
+        if (0 <= new_position[0] < HEIGHT and 0 <= new_position[1] < WIDTH and  
+            maze[new_position[0], new_position[1]] == 0):  
+            ball_position = new_position  
+            update_plot()  # 更新绘图  
+
+# 更新绘图  
+def update_plot():  
+    plt.cla()  # 清除当前图  
+    plt.imshow(maze, cmap='binary')  
+    plt.scatter(start[1], start[0], c='g', marker='o')  # 起点  
+    plt.scatter(end[1], end[0], c='b', marker='o')  # 终点  
+    plt.scatter(ball_position[1], ball_position[0], c='r', marker='o')  # 小球  
+    # 绘制解题路径  
+    if path_display:  
+        for (y, x) in solution_path:  
+            plt.scatter(x, y, c='yellow', marker='x')  # 将解题路径标记为黄色交叉标记  
+    plt.axis('off')  
+    plt.draw()  # 更新绘图  
+
+# 打印解决方案路径  
+def print_solution(event):  
+    global path_display  
+    if event.key == 'enter':  
+        path_display = True  # 设置为显示路径  
+        update_plot()  # 更新绘图以显示解决方案路径  
+        print("Solution Path:", solution_path)  
+
+# 创建迷宫  
+size_multiplier = 3  # 您可以更改此倍数以生成不同大小的迷宫  
+create_maze(size_multiplier)  
+
+# 初始化小球位置  
+ball_position = (1, 1)  
+start = (1, 1)  
+end = (HEIGHT - 2, WIDTH - 2)  
+
+# 寻找解决方案  
+solution_path = find_path(start, end)  
+
+# 移动时是否展示路径  
+path_display = False  
+
+# 绘制迷宫和初始小球位置  
+plt.imshow(maze, cmap='binary')  
+plt.scatter(start[1], start[0], c='g', marker='o')  # 起点  
+plt.scatter(end[1], end[0], c='b', marker='o')  # 终点  
+plt.scatter(ball_position[1], ball_position[0], c='r', marker='o')  # 小球  
+plt.axis('off')  
+
+# 绑定鼠标移动事件和键盘事件  
+plt.gcf().canvas.mpl_connect('motion_notify_event', move_ball)  
+plt.gcf().canvas.mpl_connect('key_press_event', print_solution)  
+
+plt.show()
